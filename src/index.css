@@ -1,0 +1,114 @@
+/* Custom styling for FamilyCare application using Bootstrap 5 */
+
+:root {
+  --fc-primary: #004ac6;
+  --fc-primary-container: #2563eb;
+  --fc-on-primary: #ffffff;
+  --fc-surface: #f7f9fb;
+  --fc-surface-lowest: #ffffff;
+  --fc-outline: #737686;
+  --fc-outline-variant: #c3c6d7;
+  --fc-text-on-surface: #191c1e;
+  --fc-text-on-surface-variant: #434655;
+  --fc-success: #007d57;
+  --fc-success-light: #85f8c4;
+}
+
+body {
+  font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  background-color: var(--fc-surface);
+  color: var(--fc-text-on-surface);
+  min-height: 100vh;
+  margin: 0;
+}
+
+/* Material Symbols alignment */
+.material-symbols-outlined {
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+  vertical-align: middle;
+}
+
+/* Custom premium background gradient mesh */
+.bg-mesh {
+  background-color: var(--fc-surface);
+  background-image: 
+    radial-gradient(at 0% 0%, rgba(37, 99, 235, 0.06) 0px, transparent 50%),
+    radial-gradient(at 100% 100%, rgba(37, 99, 235, 0.06) 0px, transparent 50%);
+  background-attachment: fixed;
+}
+
+/* Glassmorphic/Soft Premium Card Shadow */
+.card-shadow {
+  box-shadow: 0px 4px 20px rgba(15, 23, 42, 0.05), 0px 1px 3px rgba(15, 23, 42, 0.03);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  border: 1px solid var(--fc-outline-variant) !important;
+}
+
+.card-shadow:hover {
+  box-shadow: 0px 12px 30px rgba(15, 23, 42, 0.09), 0px 1px 3px rgba(15, 23, 42, 0.03);
+  transform: translateY(-2px);
+}
+
+/* Form input custom focus styling matching the Tailwind mockup */
+.form-input-focus {
+  transition: all 0.2s ease-in-out;
+}
+
+.form-input-focus:focus {
+  border-color: var(--fc-primary-container) !important;
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.15) !important;
+  outline: none;
+}
+
+/* Custom Primary Button */
+.btn-fc-primary {
+  background-color: var(--fc-primary);
+  color: var(--fc-on-primary);
+  border: none;
+  font-weight: 600;
+  transition: all 0.25s ease;
+}
+
+.btn-fc-primary:hover {
+  background-color: var(--fc-primary-container);
+  color: var(--fc-on-primary);
+}
+
+.btn-fc-primary:active {
+  opacity: 0.85;
+}
+
+/* Google Sign-in and SSO Buttons styling */
+.btn-fc-sso {
+  background-color: var(--fc-surface-lowest);
+  border: 1px solid var(--fc-outline-variant);
+  color: var(--fc-text-on-surface-variant);
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.btn-fc-sso:hover {
+  background-color: #f1f3f5;
+  color: var(--fc-text-on-surface);
+}
+
+/* Animation for spinner and loading states */
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
+
+/* Alert badge at the top for Demo Mode */
+.demo-mode-badge {
+  background: linear-gradient(135deg, #ff9900 0%, #ff5500 100%);
+  color: white;
+  font-weight: 700;
+  font-size: 0.8rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  box-shadow: 0 2px 10px rgba(255, 85, 0, 0.2);
+}

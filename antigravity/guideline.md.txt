@@ -1,0 +1,244 @@
+👨‍👩‍👧‍👦 FamilyCare - PWA de Supervisión de Tareas Familiares
+![React](https://img.shields.io/badge/React-19-blue)
+![Vite](https://img.shields.io/badge/Vite-Latest-purple)
+![Firebase](https://img.shields.io/badge/Firebase-Backend-orange)
+![Google Calendar](https://img.shields.io/badge/Google-Calendar-green)
+![PWA](https://img.shields.io/badge/PWA-Enabled-success)
+📖 Descripción
+FamilyCare es una Progressive Web Application (PWA) diseñada para ayudar a los padres a organizar y supervisar las tareas diarias de sus hijos.
+La plataforma permite asignar tareas mediante una integración con Google Calendar, realizar seguimiento de su cumplimiento y visualizar el progreso de cada integrante de la familia.
+---
+🎯 Objetivos
+Objetivo General
+Desarrollar una aplicación web progresiva que permita administrar tareas familiares de manera simple, segura y accesible desde cualquier dispositivo.
+Objetivos Específicos
+Gestionar múltiples hijos por cuenta padre.
+Asignar tareas mediante Google Calendar.
+Registrar el cumplimiento de actividades.
+Mantener sincronización en tiempo real.
+Permitir instalación como aplicación móvil.
+---
+🚀 Stack Tecnológico
+Tecnología	Función
+React	Frontend
+Vite	Bundler
+Firebase Authentication	Login
+Firebase Firestore	Base de datos
+Firebase Hosting	Deploy
+Google Calendar API	Calendario
+React Router DOM	Navegación
+Context API	Estado global
+Service Worker	Funcionalidad PWA
+---
+👥 Roles
+👨 Padre
+Funcionalidades
+Registrarse e iniciar sesión.
+Administrar hijos.
+Crear tareas.
+Asignar tareas individuales o múltiples.
+Visualizar calendario.
+Monitorear estado de cumplimiento.
+Consultar historial.
+---
+🧒 Hijo
+Funcionalidades
+Iniciar sesión.
+Ver tareas asignadas.
+Consultar calendario.
+Marcar tareas como realizadas.
+Visualizar historial personal.
+---
+📋 Historias de Usuario
+Padre
+Como padre quiero crear tareas para organizar las actividades de mis hijos.
+Como padre quiero recibir confirmación cuando una tarea fue completada.
+Como padre quiero administrar varios hijos desde una misma cuenta.
+Hijo
+Como hijo quiero visualizar mis tareas diarias.
+Como hijo quiero marcar una tarea como realizada.
+Como hijo quiero consultar mi progreso.
+---
+🏗️ Arquitectura
+```text
+                 ┌──────────────────┐
+                 │   React + Vite   │
+                 └────────┬─────────┘
+                          │
+              Firebase Authentication
+                          │
+                    Firestore DB
+                          │
+          ┌───────────────┴──────────────┐
+          │                              │
+Google Calendar API            Service Worker
+          │                              │
+          └───────────────┬──────────────┘
+                          │
+                        Usuario
+```
+---
+🗄️ Modelo de Datos
+Usuarios
+```javascript
+users
+ └── uid
+      ├── nombre
+      ├── email
+      ├── rol
+      └── hijos[]
+```
+Tareas
+```javascript
+tasks
+ └── taskId
+      ├── titulo
+      ├── descripcion
+      ├── fecha
+      ├── hora
+      ├── estado
+      ├── padreId
+      ├── hijoId
+      └── calendarEventId
+```
+---
+📱 Flujo de Pantallas
+Públicas
+Splash
+Login
+Registro
+Padre
+Dashboard
+Gestión de Hijos
+Nueva Tarea
+Calendario
+Historial
+Perfil
+Hijo
+Dashboard
+Mis Tareas
+Calendario
+Historial
+Perfil
+---
+📂 Estructura del Proyecto
+```text
+familycare-pwa/
+│
+├── public/
+├── src/
+│   ├── assets/
+│   ├── components/
+│   ├── context/
+│   ├── hooks/
+│   ├── layouts/
+│   ├── pages/
+│   │   ├── auth/
+│   │   ├── parent/
+│   │   └── child/
+│   ├── routes/
+│   ├── services/
+│   │   ├── firebase.js
+│   │   └── googleCalendar.js
+│   ├── utils/
+│   ├── App.jsx
+│   └── main.jsx
+│
+├── firebase.json
+├── vite.config.js
+├── package.json
+└── README.md
+```
+---
+🔐 Seguridad
+Firebase Authentication
+Email / Password
+Google Sign-In (opcional)
+Reglas Firestore
+Padre:
+Lectura y escritura total sobre sus hijos y tareas.
+Hijo:
+Lectura de tareas asignadas.
+Actualización del estado únicamente.
+---
+🔄 Flujo Funcional
+```text
+Padre crea tarea
+        │
+        ▼
+Guardar en Firestore
+        │
+        ▼
+Crear Evento Google Calendar
+        │
+        ▼
+Hijo visualiza tarea
+        │
+        ▼
+Marca como completada
+        │
+        ▼
+Actualizar Firestore
+        │
+        ▼
+Actualizar Google Calendar
+        │
+        ▼
+Padre recibe actualización
+```
+---
+📦 Instalación
+```bash
+git clone https://github.com/usuario/familycare-pwa.git
+
+cd familycare-pwa
+
+npm install
+
+npm run dev
+```
+---
+⚙️ Variables de Entorno
+```env
+VITE_API_KEY=
+VITE_AUTH_DOMAIN=
+VITE_PROJECT_ID=
+VITE_STORAGE_BUCKET=
+VITE_MESSAGING_SENDER_ID=
+VITE_APP_ID=
+VITE_GOOGLE_CLIENT_ID=
+```
+---
+📅 Roadmap
+Sprint 1
+Configuración inicial
+Firebase
+Login
+Roles
+Sprint 2
+CRUD Hijos
+CRUD Tareas
+Sprint 3
+Google Calendar API
+Sprint 4
+Historial
+Optimización PWA
+Deploy
+---
+✅ Funcionalidades PWA
+Instalable
+Responsive
+Offline parcial
+Caché inteligente
+Actualización automática
+---
+👨‍💻 Equipo de Desarrollo
+Proyecto Académico
+Desarrollado utilizando:
+React
+Vite
+Firebase
+Google Calendar API
+---
+📄 Licencia
+Este proyecto fue desarrollado con fines educativos y académicos.
