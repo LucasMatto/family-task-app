@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import Login from "./pages/auth/Login";
+import Register from "./pages/auth/Register";
 import { getTasks } from "./services/firestoreTasks.js";
 import ParentTaskList from "./pages/tasks/ParentTaskList";
 import { addTask, updateTask, deleteTask } from "./services/firestoreTasks.js";

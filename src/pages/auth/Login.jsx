@@ -8,6 +8,7 @@ export default function Login() {
   const [remember, setRemember] = useState(false);
   const [localError, setLocalError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState({});
 
   const { login, isFirebaseConfigured, error: authError } = useAuth();
   const navigate = useNavigate();
@@ -21,11 +22,24 @@ export default function Login() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLocalError("");
+    setFieldErrors({});
     setIsSubmitting(true);
+
+    // Validation
+    const errors = {};
+    if (!email.trim()) errors.email = "Correo es obligatorio";
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) errors.email = "Formato de correo inválido";
+    if (!password) errors.password = "Contraseña es obligatoria";
+    else if (password.length < 6) errors.password = "Mínimo 6 caracteres";
+
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
+      setIsSubmitting(false);
+      return;
+    }
 
     try {
       await login(email, password);
-      // Success! Redirect to home page / dashboard
       navigate("/");
     } catch (err) {
       setLocalError(err.message || "Error al iniciar sesión.");
@@ -155,17 +169,20 @@ export default function Login() {
                         mail
                       </span>
                       <input 
-                        className="form-control form-input-focus rounded-3 py-2-5 ps-5 fs-6" 
+                        className={`form-control form-input-focus rounded-3 py-2-5 ps-5 fs-6 ${fieldErrors.email ? 'is-invalid' : ''}`} 
                         style={{ paddingLeft: "42px" }}
                         id="email" 
                         name="email" 
                         placeholder="ejemplo@correo.com" 
                         required 
-                        type="email"
+                        type="email" 
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
                         disabled={isSubmitting}
                       />
+                      {fieldErrors.email && (
+                        <div className="invalid-feedback d-block small" style={{ color: 'red' }}>{fieldErrors.email}</div>
+                      )}
                     </div>
                   </div>
 
@@ -187,17 +204,20 @@ export default function Login() {
                         lock
                       </span>
                       <input 
-                        className="form-control form-input-focus rounded-3 py-2-5 ps-5 fs-6" 
-                        style={{ paddingLeft: "42px" }}
-                        id="password" 
-                        name="password" 
-                        placeholder="••••••••" 
-                        required 
-                        type="password"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        disabled={isSubmitting}
-                      />
+  className={`form-control form-input-focus rounded-3 py-2-5 ps-5 fs-6 ${fieldErrors.password ? 'is-invalid' : ''}`} 
+  style={{ paddingLeft: "42px" }}
+  id="password" 
+  name="password" 
+  placeholder="••••••••" 
+  required 
+  type="password"
+  value={password}
+  onChange={(e) => setPassword(e.target.value)}
+  disabled={isSubmitting}
+/>
+{fieldErrors.password && (
+  <div className="invalid-feedback d-block small" style={{ color: 'red' }}>{fieldErrors.password}</div>
+)}
                     </div>
                   </div>
 

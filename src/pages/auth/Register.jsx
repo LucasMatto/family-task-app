@@ -9,8 +9,8 @@ export default function Register() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [role, setRole] = useState("");
-  const [localError, setLocalError] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState({});
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   const [isSuccess, setIsSuccess] = useState(false);
 
   const { register, isFirebaseConfigured, error: authError } = useAuth();
@@ -21,8 +21,17 @@ export default function Register() {
     setLocalError("");
     setIsSubmitting(true);
 
-    if (!role) {
-      setLocalError("Por favor, selecciona tu rol.");
+    // Client-side validation
+    const errors = {};
+    if (!firstName.trim()) errors.firstName = "Nombre es obligatorio";
+    if (!lastName.trim()) errors.lastName = "Apellidos son obligatorios";
+    if (!email.trim()) errors.email = "Correo es obligatorio";
+    else if (!emailRegex.test(email)) errors.email = "Formato de correo inválido";
+    if (!password) errors.password = "Contraseña es obligatoria";
+    else if (password.length < 6) errors.password = "Mínimo 6 caracteres";
+    if (!role) errors.role = "Selecciona un rol";
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
       setIsSubmitting(false);
       return;
     }
@@ -31,6 +40,8 @@ export default function Register() {
       await register(email, password, firstName, lastName, role);
       
       // Success micro-interaction
+      // Clear field errors on successful submit
+      setFieldErrors({});
       setIsSuccess(true);
       
       // Trigger canvas-confetti
@@ -42,7 +53,7 @@ export default function Register() {
 
       // Redirect after showing success state
       setTimeout(() => {
-        navigate("/");
+        navigate("/login");
       }, 1800);
 
     } catch (err) {
@@ -129,33 +140,39 @@ export default function Register() {
                     <label className="fw-semibold text-secondary small" htmlFor="firstName">
                       Nombre
                     </label>
-                    <input 
-                      className="form-control form-input-focus rounded-3 py-2-5 fs-6" 
-                      id="firstName" 
-                      name="firstName" 
-                      placeholder="Ej: Ana" 
-                      required 
-                      type="text"
-                      value={firstName}
-                      onChange={(e) => setFirstName(e.target.value)}
-                      disabled={isSubmitting || isSuccess}
-                    />
+                <input 
+                  className={`form-control form-input-focus rounded-3 py-2-5 fs-6 ${fieldErrors.firstName ? 'is-invalid' : ''}`} 
+                  id="firstName" 
+                  name="firstName" 
+                  placeholder="Ej: Ana" 
+                  required 
+                  type="text"
+                  value={firstName}
+                  onChange={(e) => setFirstName(e.target.value)}
+                  disabled={isSubmitting || isSuccess}
+                />
+                {fieldErrors.firstName && (
+                  <div className="invalid-feedback d-block small" style={{ color: 'red' }}>{fieldErrors.firstName}</div>
+                )}
                   </div>
                   <div className="col-12 col-md-6 d-flex flex-column gap-1">
                     <label className="fw-semibold text-secondary small" htmlFor="lastName">
                       Apellidos
                     </label>
-                    <input 
-                      className="form-control form-input-focus rounded-3 py-2-5 fs-6" 
-                      id="lastName" 
-                      name="lastName" 
-                      placeholder="Ej: García" 
-                      required 
-                      type="text"
-                      value={lastName}
-                      onChange={(e) => setLastName(e.target.value)}
-                      disabled={isSubmitting || isSuccess}
-                    />
+                <input 
+                  className={`form-control form-input-focus rounded-3 py-2-5 fs-6 ${fieldErrors.lastName ? 'is-invalid' : ''}`} 
+                  id="lastName" 
+                  name="lastName" 
+                  placeholder="Ej: García" 
+                  required 
+                  type="text"
+                  value={lastName}
+                  onChange={(e) => setLastName(e.target.value)}
+                  disabled={isSubmitting || isSuccess}
+                />
+                {fieldErrors.lastName && (
+                  <div className="invalid-feedback d-block small" style={{ color: 'red' }}>{fieldErrors.lastName}</div>
+                )}
                   </div>
                 </div>
 
@@ -172,7 +189,7 @@ export default function Register() {
                       mail
                     </span>
                     <input 
-                      className="form-control form-input-focus rounded-3 py-2-5 ps-5 fs-6" 
+                      className={`form-control form-input-focus rounded-3 py-2-5 ps-5 fs-6 ${fieldErrors.email ? 'is-invalid' : ''}`} 
                       style={{ paddingLeft: "42px" }}
                       id="email" 
                       name="email" 
@@ -183,6 +200,9 @@ export default function Register() {
                       onChange={(e) => setEmail(e.target.value)}
                       disabled={isSubmitting || isSuccess}
                     />
+                    {fieldErrors.email && (
+                      <div className="invalid-feedback d-block small" style={{ color: 'red' }}>{fieldErrors.email}</div>
+                    )}
                   </div>
                 </div>
 
@@ -198,18 +218,21 @@ export default function Register() {
                     >
                       lock
                     </span>
-                    <input 
-                      className="form-control form-input-focus rounded-3 py-2-5 ps-5 fs-6" 
-                      style={{ paddingLeft: "42px" }}
-                      id="password" 
-                      name="password" 
-                      placeholder="••••••••" 
-                      required 
-                      type="password"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      disabled={isSubmitting || isSuccess}
-                    />
+                <input 
+                  className={`form-control form-input-focus rounded-3 py-2-5 ps-5 fs-6 ${fieldErrors.password ? 'is-invalid' : ''}`} 
+                  style={{ paddingLeft: "42px" }}
+                  id="password" 
+                  name="password" 
+                  placeholder="••••••••" 
+                  required 
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  disabled={isSubmitting || isSuccess}
+                />
+                {fieldErrors.password && (
+                  <div className="invalid-feedback d-block small" style={{ color: 'red' }}>{fieldErrors.password}</div>
+                )}
                   </div>
                 </div>
 
@@ -226,7 +249,7 @@ export default function Register() {
                       groups
                     </span>
                     <select 
-                      className="form-select form-input-focus rounded-3 py-2-5 ps-5 fs-6" 
+                      className={`form-select form-input-focus rounded-3 py-2-5 ps-5 fs-6 ${fieldErrors.role ? 'is-invalid' : ''}`} 
                       style={{ paddingLeft: "42px" }}
                       id="role" 
                       name="role" 
@@ -239,6 +262,9 @@ export default function Register() {
                       <option value="Padre">Padre / Madre</option>
                       <option value="Hijo">Hijo / Hija</option>
                     </select>
+                    {fieldErrors.role && (
+                      <div className="invalid-feedback d-block small" style={{ color: 'red' }}>{fieldErrors.role}</div>
+                    )}
                   </div>
                 </div>
 

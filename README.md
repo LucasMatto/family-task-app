@@ -6,7 +6,7 @@ App para gestión de tareas familiares.
 
 - React
 - Vite
-- Firebase
+- supabase
 - PWA
 
 ## Desarrollo

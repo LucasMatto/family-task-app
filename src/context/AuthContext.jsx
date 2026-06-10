@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { auth as firebaseAuth, db as firebaseDb, isFirebaseConfigured } from "../services/firebase";
+import { supabase, isSupabaseConfigured } from "../services/supabase";
 import { 
   signInWithEmailAndPassword, 
   createUserWithEmailAndPassword, 
@@ -110,16 +111,49 @@ export function AuthProvider({ children }) {
     setError(null);
     setLoading(true);
 
-    if (isFirebaseConfigured) {
+    if (isSupabaseConfigured) {
+      // Supabase registration flow
+      try {
+        const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+          email,
+          password,
+          options: { data: { first_name: firstName, last_name: lastName, role } }
+        });
+        if (signUpError) throw signUpError;
+        // Insert profile into 'profiles' table (or 'users')
+        const { error: insertError } = await supabase
+          .from('profiles')
+          .insert({
+            id: signUpData.user.id,
+            first_name: firstName,
+            last_name: lastName,
+            email,
+            role
+          });
+        if (insertError) throw insertError;
+        const userData = {
+          uid: signUpData.user.id,
+          email,
+          displayName: `${firstName} ${lastName}`,
+          firstName,
+          lastName,
+          role
+        };
+        setCurrentUser(userData);
+        setLoading(false);
+        return userData;
+      } catch (err) {
+        setLoading(false);
+        setError(err.message);
+        throw err;
+      }
+    } else if (isFirebaseConfigured) {
+      // Existing Firebase flow (unchanged)
       try {
         const userCredential = await createUserWithEmailAndPassword(firebaseAuth, email, password);
         const user = userCredential.user;
-
-        // Update profile display name
         const displayName = `${firstName} ${lastName}`;
         await updateProfile(user, { displayName });
-
-        // Save role and data to Firestore
         await setDoc(doc(firebaseDb, "users", user.uid), {
           firstName,
           lastName,
@@ -127,7 +161,6 @@ export function AuthProvider({ children }) {
           role,
           hijos: []
         });
-
         const userData = {
           uid: user.uid,
           email: user.email,
@@ -145,34 +178,28 @@ export function AuthProvider({ children }) {
         throw err;
       }
     } else {
-      // Mock Register
+      // Mock Register (unchanged)
       return new Promise((resolve, reject) => {
         setTimeout(() => {
           try {
             const users = JSON.parse(localStorage.getItem("fc_mock_users") || "[]");
-            
-            // Check if user already exists
             if (users.find(u => u.email.toLowerCase() === email.toLowerCase())) {
               const err = new Error("El correo electrónico ya está registrado.");
               setError(err.message);
               setLoading(false);
               return reject(err);
             }
-
             const newUser = {
               uid: `mock-user-${Date.now()}`,
               email,
-              password, // Stored in plain text for local mock testing ease
+              password,
               firstName,
               lastName,
               displayName: `${firstName} ${lastName}`,
               role
             };
-
             users.push(newUser);
             localStorage.setItem("fc_mock_users", JSON.stringify(users));
-
-            // Log user in automatically
             const loggedInUser = {
               uid: newUser.uid,
               email: newUser.email,
@@ -183,7 +210,6 @@ export function AuthProvider({ children }) {
             };
             localStorage.setItem("fc_mock_current_user", JSON.stringify(loggedInUser));
             setCurrentUser(loggedInUser);
-            
             setLoading(false);
             resolve(loggedInUser);
           } catch (err) {
@@ -191,7 +217,7 @@ export function AuthProvider({ children }) {
             setError(err.message);
             reject(err);
           }
-        }, 1000); // Simulate network delay
+        }, 1000);
       });
     }
   }
@@ -201,15 +227,41 @@ export function AuthProvider({ children }) {
     setError(null);
     setLoading(true);
 
-    if (isFirebaseConfigured) {
+    if (isSupabaseConfigured) {
+      try {
+        const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+        if (signInError) throw signInError;
+        // Fetch profile from 'profiles' table
+        const { data: profile, error: profileError } = await supabase
+          .from('profiles')
+          .select('first_name, last_name, role')
+          .eq('id', signInData.user.id)
+          .single();
+        if (profileError) throw profileError;
+        const userData = {
+          uid: signInData.user.id,
+          email: signInData.user.email,
+          displayName: `${profile.first_name} ${profile.last_name}`.trim(),
+          firstName: profile.first_name,
+          lastName: profile.last_name,
+          role: profile.role
+        };
+        setCurrentUser(userData);
+        setLoading(false);
+        return userData;
+      } catch (err) {
+        setLoading(false);
+        const friendlyMessage = err.message || "Error de autenticación";
+        setError(friendlyMessage);
+        throw new Error(friendlyMessage);
+      }
+    } else if (isFirebaseConfigured) {
+      // Existing Firebase login (unchanged)
       try {
         const userCredential = await signInWithEmailAndPassword(firebaseAuth, email, password);
         const user = userCredential.user;
-        
-        // Fetch Firestore profile
         const docRef = doc(firebaseDb, "users", user.uid);
         const docSnap = await getDoc(docRef);
-        
         let role = "Padre";
         let firstName = "";
         let lastName = "";
@@ -219,7 +271,6 @@ export function AuthProvider({ children }) {
           firstName = data.firstName || "";
           lastName = data.lastName || "";
         }
-
         const userData = {
           uid: user.uid,
           email: user.email,
@@ -228,7 +279,6 @@ export function AuthProvider({ children }) {
           lastName,
           role
         };
-        
         setCurrentUser(userData);
         setLoading(false);
         return userData;
@@ -242,35 +292,36 @@ export function AuthProvider({ children }) {
         throw new Error(friendlyMessage);
       }
     } else {
-      // Mock Login
-      return new Promise((resolve, reject) => {
-        setTimeout(() => {
-          const users = JSON.parse(localStorage.getItem("fc_mock_users") || "[]");
-          const user = users.find(
-            u => u.email.toLowerCase() === email.toLowerCase() && u.password === password
-          );
+        // Mock Login
+        return new Promise((resolve, reject) => {
+          setTimeout(() => {
+            const users = JSON.parse(localStorage.getItem("fc_mock_users") || "[]");
+            const user = users.find(
+              u => u.email.toLowerCase() === email.toLowerCase() && u.password === password
+            );
 
-          if (user) {
-            const loggedInUser = {
-              uid: user.uid,
-              email: user.email,
-              displayName: user.displayName,
-              firstName: user.firstName,
-              lastName: user.lastName,
-              role: user.role
-            };
-            localStorage.setItem("fc_mock_current_user", JSON.stringify(loggedInUser));
-            setCurrentUser(loggedInUser);
-            setLoading(false);
-            resolve(loggedInUser);
-          } else {
-            setLoading(false);
-            const err = new Error("Correo o contraseña incorrectos (Modo Demo).");
-            setError(err.message);
-            reject(err);
-          }
-        }, 1000); // Simulate network delay
-      });
+            if (user) {
+              const loggedInUser = {
+                uid: user.uid,
+                email: user.email,
+                displayName: user.displayName,
+                firstName: user.firstName,
+                lastName: user.lastName,
+                role: user.role
+              };
+              localStorage.setItem("fc_mock_current_user", JSON.stringify(loggedInUser));
+              setCurrentUser(loggedInUser);
+              setLoading(false);
+              resolve(loggedInUser);
+            } else {
+              setLoading(false);
+              const err = new Error("Correo o contraseña incorrectos (Modo Demo).");
+              setError(err.message);
+              reject(err);
+            }
+          }, 1000); // Simulate network delay
+        });
+    }
     }
   }
 
@@ -307,10 +358,12 @@ export function AuthProvider({ children }) {
     loading,
     error,
     isFirebaseConfigured,
+    isSupabaseConfigured,
     register,
     login,
     logout
   };
+
 
   return (
     <AuthContext.Provider value={value}>
