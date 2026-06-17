@@ -3,9 +3,8 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import Login from "./pages/auth/Login";
 import Register from "./pages/auth/Register";
-import { getTasks } from "./services/firestoreTasks.js";
+import { getTasks, addTask, updateTask, deleteTask } from "./services/supabaseTasks.js";
 import ParentTaskList from "./pages/tasks/ParentTaskList";
-import { addTask, updateTask, deleteTask } from "./services/firestoreTasks.js";
 import TaskForm from "./pages/tasks/TaskForm.jsx";
 
 // Protected Route Component
@@ -32,7 +31,7 @@ function ProtectedRoute({ children }) {
 
 // Simple Beautiful Dashboard Component
 function Dashboard() {
-  const { currentUser, logout, isFirebaseConfigured } = useAuth();
+  const { currentUser, logout, isSupabaseConfigured } = useAuth();
 
   const handleLogout = async () => {
     try {
@@ -50,6 +49,14 @@ function Dashboard() {
 
   // Tasks state fetched from Firestore (fallback to mock if not configured)
   const [tasks, setTasks] = useState([]);
+
+  useEffect(() => {
+    if (currentUser) {
+      getTasks(currentUser.uid)
+        .then(data => setTasks(data))
+        .catch(err => console.error("Error loading tasks:", err));
+    }
+  }, [currentUser]);
   // Handlers for task actions (parent view)
   const handleStatusToggle = async (task) => {
     const newStatus = task.status === "Completada" ? "Pendiente" : "Completada";
@@ -99,10 +106,10 @@ function Dashboard() {
           </div>
 
           <div className="d-flex align-items-center gap-3">
-            {isFirebaseConfigured ? (
+            {isFirebaseConfigured || isSupabaseConfigured ? (
               <span className="badge bg-success-subtle text-success border border-success-subtle px-3 py-2 rounded-pill d-none d-sm-inline-flex align-items-center gap-1">
                 <span className="material-symbols-outlined fs-6">cloud_done</span>
-                Firebase Conectado
+                Supabase Conectado
               </span>
             ) : (
               <span className="badge demo-mode-badge px-3 py-2 rounded-pill d-none d-sm-inline-flex align-items-center gap-1">
@@ -244,17 +251,17 @@ function Dashboard() {
             <div className="card border-0 p-4 rounded-4 card-shadow bg-white d-flex flex-column gap-3 mb-4">
               <h4 className="fw-bold text-dark d-flex align-items-center gap-2 mb-0">
                 <span className="material-symbols-outlined text-warning">key</span>
-                Credenciales Firebase
+                Credenciales Supabase
               </h4>
               
-              {isFirebaseConfigured ? (
+              {isSupabaseConfigured ? (
                 <div className="text-success small d-flex flex-column gap-2">
                   <div className="d-flex align-items-center gap-2">
                     <span className="material-symbols-outlined">check_circle</span>
-                    <span>¡Tu aplicación está usando una conexión de Firebase en tiempo real!</span>
+                    <span>¡Tu aplicación está usando una conexión de Supabase en tiempo real!</span>
                   </div>
                   <p className="mb-0 text-muted">
-                    Los usuarios se registran y autentican mediante Firebase Auth, y sus roles se almacenan de forma segura en Cloud Firestore.
+                    Los usuarios se registran y autentican mediante Supabase Auth, y sus roles y tareas se almacenan de forma segura en tablas de PostgreSQL.
                   </p>
                 </div>
               ) : (
@@ -264,17 +271,16 @@ function Dashboard() {
                     <span className="fw-semibold">Ejecutando en Modo Demo Local</span>
                   </div>
                   <p className="mb-2 text-muted">
-                    Para conectar tu proyecto a tu propia base de datos Firebase:
+                    Para conectar tu proyecto a tu propia base de datos Supabase:
                   </p>
                   <ol className="ps-3 mb-2 text-muted">
-                    <li className="mb-1">Crea un proyecto en <a href="https://console.firebase.google.com/" target="_blank" rel="noreferrer" className="text-primary text-decoration-none fw-semibold">Firebase Console</a></li>
-                    <li className="mb-1">Habilita <strong>Email/Password</strong> en Firebase Authentication</li>
-                    <li className="mb-1">Crea una base de datos <strong>Cloud Firestore</strong></li>
+                    <li className="mb-1">Crea un proyecto en <a href="https://supabase.com/" target="_blank" rel="noreferrer" className="text-primary text-decoration-none fw-semibold">Supabase Console</a></li>
+                    <li className="mb-1">Crea la tabla <code className="bg-light px-1 rounded text-danger">profiles</code> y <code className="bg-light px-1 rounded text-danger">tasks</code></li>
                     <li className="mb-1">Copia las credenciales en el archivo <code className="bg-light px-1 rounded text-danger">.env</code> de la raíz del proyecto.</li>
                     <li className="mb-1">Reinicia el servidor dev.</li>
                   </ol>
                   <p className="mb-0 text-muted">
-                    El proyecto detectará automáticamente las credenciales y cambiará a modo Firebase.
+                    El proyecto detectará automáticamente las credenciales y cambiará a modo Supabase.
                   </p>
                 </div>
               )}

@@ -10,7 +10,7 @@ export default function Login() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [fieldErrors, setFieldErrors] = useState({});
 
-  const { login, isFirebaseConfigured, error: authError } = useAuth();
+  const { login, isSupabaseConfigured, error: authError } = useAuth();
   const navigate = useNavigate();
 
   const handleQuickLogin = (demoEmail, demoPassword) => {
@@ -65,10 +65,10 @@ export default function Login() {
           
           {/* Badge indicator for connection status */}
           <div>
-            {isFirebaseConfigured ? (
+            {isFirebaseConfigured || isSupabaseConfigured ? (
               <span className="badge bg-success-subtle text-success border border-success-subtle px-3 py-2 rounded-pill d-flex align-items-center gap-1">
                 <span className="material-symbols-outlined fs-6">cloud_done</span>
-                Firebase Conectado
+                Supabase Conectado
               </span>
             ) : (
               <span className="badge demo-mode-badge px-3 py-2 rounded-pill d-flex align-items-center gap-1">
@@ -121,7 +121,7 @@ export default function Login() {
                 </div>
 
                 {/* Local Demo Credentials Helper Alert */}
-                {!isFirebaseConfigured && (
+                {!isSupabaseConfigured && (
                   <div className="alert alert-info border-0 rounded-3 py-2 px-3 mb-4" style={{ fontSize: "0.85rem" }}>
                     <div className="fw-semibold mb-2 d-flex align-items-center gap-1">
                       <span className="material-symbols-outlined fs-6">info</span>

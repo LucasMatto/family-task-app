@@ -11,9 +11,11 @@ export default function Register() {
   const [role, setRole] = useState("");
   const [fieldErrors, setFieldErrors] = useState({});
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  const [localError, setLocalError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
 
-  const { register, isFirebaseConfigured, error: authError } = useAuth();
+  const { register, isSupabaseConfigured, error: authError } = useAuth();
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
@@ -79,10 +81,10 @@ export default function Register() {
           
           {/* Connection status indicator */}
           <div>
-            {isFirebaseConfigured ? (
+            {isFirebaseConfigured || isSupabaseConfigured ? (
               <span className="badge bg-success-subtle text-success border border-success-subtle px-3 py-2 rounded-pill d-flex align-items-center gap-1">
                 <span className="material-symbols-outlined fs-6">cloud_done</span>
-                Firebase Conectado
+                Supabase Conectado
               </span>
             ) : (
               <span className="badge demo-mode-badge px-3 py-2 rounded-pill d-flex align-items-center gap-1">
@@ -364,3 +366,5 @@ export default function Register() {
     </div>
   );
 }
+
+
