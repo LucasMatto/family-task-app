@@ -2,7 +2,7 @@
 // Component to display tasks in a table for parent users
 import React from "react";
 
-export default function ParentTaskList({ tasks, onStatusToggle, onDelete }) {
+export default function ParentTaskList({ tasks, onStatusToggle, onDelete, onUpdateTask }) {
   return (
     <div className="card border-0 rounded-4 card-shadow bg-white overflow-hidden">
       <div className="table-responsive">
@@ -11,6 +11,7 @@ export default function ParentTaskList({ tasks, onStatusToggle, onDelete }) {
             <tr>
               <th className="px-4 py-3 border-0">Tarea</th>
               <th className="py-3 border-0">Asignado a</th>
+              <th className="py-3 border-0">Fecha</th>
               <th className="py-3 border-0">Hora</th>
               <th className="py-3 border-0 text-end px-4">Estado</th>
               <th className="py-3 border-0 text-end px-4">Acciones</th>
@@ -21,6 +22,14 @@ export default function ParentTaskList({ tasks, onStatusToggle, onDelete }) {
               <tr key={task.id}>
                 <td className="px-4 py-3 fw-semibold text-dark border-0">{task.title}</td>
                 <td className="py-3 text-secondary border-0">{task.assignedTo}</td>
+                <td className="py-3 text-secondary border-0">
+                  <input 
+                    type="date" 
+                    className="form-control form-control-sm"
+                    value={task.fecha || ''}
+                    onChange={(e) => onUpdateTask(task.id, { fecha: e.target.value })}
+                  />
+                </td>
                 <td className="py-3 text-secondary border-0">{task.time}</td>
                 <td className="py-3 text-end px-4 border-0">
                   <span className={`badge px-3 py-1-5 rounded-pill ${

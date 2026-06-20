@@ -1,5 +1,13 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
-import { supabase, isSupabaseConfigured } from "../services/supabase";
+import { auth, db, isFirebaseConfigured } from "../services/firebase";
+import { 
+  onAuthStateChanged, 
+  createUserWithEmailAndPassword, 
+  signInWithEmailAndPassword, 
+  signOut 
+} from "firebase/auth";
+import { doc, getDoc, setDoc } from "firebase/firestore";
+
 const AuthContext = createContext();
 
 export function useAuth() {
@@ -35,28 +43,37 @@ export function AuthProvider({ children }) {
 
   // Initialize Auth
   useEffect(() => {
-    const checkSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('first_name, last_name, role')
-          .eq('id', session.user.id)
-          .single();
-        
-        setCurrentUser({
-          uid: session.user.id,
-          email: session.user.email,
-          displayName: profile ? `${profile.first_name} ${profile.last_name}` : "Usuario",
-          firstName: profile?.first_name,
-          lastName: profile?.last_name,
-          role: profile?.role
-        });
+    if (!isFirebaseConfigured) {
+      setLoading(false);
+      return;
+    }
+
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        try {
+          const docRef = doc(db, 'users', user.uid);
+          const docSnap = await getDoc(docRef);
+          const profile = docSnap.exists() ? docSnap.data() : null;
+          
+          setCurrentUser({
+            uid: user.uid,
+            email: user.email,
+            displayName: profile ? `${profile.first_name} ${profile.last_name}` : "Usuario",
+            firstName: profile?.first_name,
+            lastName: profile?.last_name,
+            role: profile?.role
+          });
+        } catch (err) {
+          console.error("Error fetching user profile:", err);
+          setCurrentUser(null);
+        }
+      } else {
+        setCurrentUser(null);
       }
       setLoading(false);
-    };
+    });
 
-    checkSession();
+    return () => unsubscribe();
   }, []);
 
   // Register function
@@ -64,7 +81,7 @@ export function AuthProvider({ children }) {
     setError(null);
     setLoading(true);
 
-    if (!isSupabaseConfigured) {
+    if (!isFirebaseConfigured) {
       // Mock Register
       const newUser = {
         uid: `mock-user-${Date.now()}`,
@@ -82,26 +99,18 @@ export function AuthProvider({ children }) {
     }
 
     try {
-      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
-        email,
-        password,
-        options: { data: { first_name: firstName, last_name: lastName, role } }
-      });
-      if (signUpError) throw signUpError;
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
       
-      const { error: insertError } = await supabase
-        .from('profiles')
-        .insert({
-          id: signUpData.user.id,
-          first_name: firstName,
-          last_name: lastName,
-          email,
-          role
-        });
-      if (insertError) throw insertError;
+      await setDoc(doc(db, 'users', user.uid), {
+        first_name: firstName,
+        last_name: lastName,
+        email,
+        role
+      });
       
       const userData = {
-        uid: signUpData.user.id,
+        uid: user.uid,
         email,
         displayName: `${firstName} ${lastName}`,
         firstName,
@@ -123,7 +132,7 @@ export function AuthProvider({ children }) {
     setError(null);
     setLoading(true);
 
-    if (!isSupabaseConfigured) {
+    if (!isFirebaseConfigured) {
       // Mock Login lookup
       const found = MOCK_DEMO_USERS.find(u => u.email === email && u.password === password);
       if (found) {
@@ -139,23 +148,20 @@ export function AuthProvider({ children }) {
     }
 
     try {
-      const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({ email, password });
-      if (signInError) throw signInError;
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
       
-      const { data: profile, error: profileError } = await supabase
-        .from('profiles')
-        .select('first_name, last_name, role')
-        .eq('id', signInData.user.id)
-        .single();
-      if (profileError) throw profileError;
+      const docRef = doc(db, 'users', user.uid);
+      const docSnap = await getDoc(docRef);
+      const profile = docSnap.exists() ? docSnap.data() : null;
       
       const userData = {
-        uid: signInData.user.id,
-        email: signInData.user.email,
-        displayName: `${profile.first_name} ${profile.last_name}`.trim(),
-        firstName: profile.first_name,
-        lastName: profile.last_name,
-        role: profile.role
+        uid: user.uid,
+        email: user.email,
+        displayName: profile ? `${profile.first_name} ${profile.last_name}`.trim() : "Usuario",
+        firstName: profile?.first_name,
+        lastName: profile?.last_name,
+        role: profile?.role
       };
       setCurrentUser(userData);
       setLoading(false);
@@ -173,8 +179,14 @@ export function AuthProvider({ children }) {
     setError(null);
     setLoading(true);
 
+    if (!isFirebaseConfigured) {
+      setCurrentUser(null);
+      setLoading(false);
+      return;
+    }
+
     try {
-      await supabase.auth.signOut();
+      await signOut(auth);
       setCurrentUser(null);
       setLoading(false);
     } catch (err) {
@@ -188,7 +200,8 @@ export function AuthProvider({ children }) {
     currentUser,
     loading,
     error,
-    isSupabaseConfigured,
+    isFirebaseConfigured,
+    isSupabaseConfigured: isFirebaseConfigured, // fallback para componentes antiguos
     register,
     login,
     logout

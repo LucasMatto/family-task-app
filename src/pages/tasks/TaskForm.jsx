@@ -4,14 +4,16 @@ import React, { useState } from "react";
 
 export default function TaskForm({ onAdd }) {
   const [title, setTitle] = useState("");
+  const [fecha, setFecha] = useState("");
   const [time, setTime] = useState("");
   const [assignedTo, setAssignedTo] = useState("");
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!title || !time || !assignedTo) return;
+    if (!title || !fecha || !time || !assignedTo) return;
     const newTask = {
       title,
+      fecha,
       time,
       assignedTo,
       status: "Pendiente",
@@ -19,6 +21,7 @@ export default function TaskForm({ onAdd }) {
     await onAdd(newTask);
     // reset fields
     setTitle("");
+    setFecha("");
     setTime("");
     setAssignedTo("");
   };
@@ -26,7 +29,7 @@ export default function TaskForm({ onAdd }) {
   return (
     <form className="card border-0 p-4 rounded-4 card-shadow bg-white mb-4" onSubmit={handleSubmit}>
       <div className="row g-3">
-        <div className="col-md-4">
+        <div className="col-md-3">
           <input
             type="text"
             className="form-control"
@@ -36,7 +39,16 @@ export default function TaskForm({ onAdd }) {
             required
           />
         </div>
-        <div className="col-md-3">
+        <div className="col-md-2">
+          <input
+            type="date"
+            className="form-control"
+            value={fecha}
+            onChange={(e) => setFecha(e.target.value)}
+            required
+          />
+        </div>
+        <div className="col-md-2">
           <input
             type="time"
             className="form-control"

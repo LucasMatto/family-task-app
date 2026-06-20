@@ -3,7 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import Login from "./pages/auth/Login";
 import Register from "./pages/auth/Register";
-import { getTasks, addTask, updateTask, deleteTask } from "./services/supabaseTasks.js";
+import { getTasks, addTask, updateTask, deleteTask } from "./services/firestoreTasks.js";
 import ParentTaskList from "./pages/tasks/ParentTaskList";
 import TaskForm from "./pages/tasks/TaskForm.jsx";
 
@@ -32,6 +32,7 @@ function ProtectedRoute({ children }) {
 // Simple Beautiful Dashboard Component
 function Dashboard() {
   const { currentUser, logout, isSupabaseConfigured } = useAuth();
+  const isFirebaseConfigured = true; // Temporary fix if undeclared in useAuth
 
   const handleLogout = async () => {
     try {
@@ -67,6 +68,16 @@ function Dashboard() {
       setTasks(refreshed);
     } catch (err) {
       console.error("Error updating task status:", err);
+    }
+  };
+
+  const handleUpdateTask = async (taskId, updates) => {
+    try {
+      await updateTask(currentUser.uid, taskId, updates);
+      const refreshed = await getTasks(currentUser.uid);
+      setTasks(refreshed);
+    } catch (err) {
+      console.error("Error updating task:", err);
     }
   };
 
@@ -200,7 +211,12 @@ function Dashboard() {
 
                 {/* Parent Section: Tareas */}
                 <TaskForm onAdd={handleAddTask} />
-                <ParentTaskList tasks={tasks} onStatusToggle={handleStatusToggle} onDelete={handleDelete} />
+                <ParentTaskList 
+                  tasks={tasks} 
+                  onStatusToggle={handleStatusToggle} 
+                  onDelete={handleDelete} 
+                  onUpdateTask={handleUpdateTask} 
+                />
               </>
             ) : (
               <>
