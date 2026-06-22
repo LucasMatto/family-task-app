@@ -1,6 +1,6 @@
 import { initializeApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
-import { getFirestore } from "firebase/firestore";
+import { initializeFirestore } from "firebase/firestore";
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -28,7 +28,11 @@ if (isFirebaseConfigured) {
   try {
     app = initializeApp(firebaseConfig);
     auth = getAuth(app);
-    db = getFirestore(app);
+    // Forzar long-polling: evita el error de WebChannel/CORS de Firestore
+    // en redes/extensiones que bloquean el streaming.
+    db = initializeFirestore(app, {
+      experimentalForceLongPolling: true,
+    });
     console.log("Firebase inicializado con éxito.");
   } catch (error) {
     console.error("Error al inicializar Firebase. Se usará el modo simulado (Mock Mode).", error);
@@ -37,4 +41,4 @@ if (isFirebaseConfigured) {
   console.log("Credenciales de Firebase no detectadas. Iniciando en Modo Demo (Mock Mode).");
 }
 
-export { auth, db, isFirebaseConfigured };
+export { auth, db, firebaseConfig, isFirebaseConfigured };

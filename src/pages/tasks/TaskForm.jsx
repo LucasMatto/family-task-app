@@ -2,7 +2,7 @@
 // Component for creating a new task (parent view)
 import React, { useState } from "react";
 
-export default function TaskForm({ onAdd }) {
+export default function TaskForm({ onAdd, children = [] }) {
   const [title, setTitle] = useState("");
   const [fecha, setFecha] = useState("");
   const [time, setTime] = useState("");
@@ -58,14 +58,22 @@ export default function TaskForm({ onAdd }) {
           />
         </div>
         <div className="col-md-3">
-          <input
-            type="text"
-            className="form-control"
-            placeholder="Asignado a (nombre)"
+          <select
+            className="form-select"
             value={assignedTo}
             onChange={(e) => setAssignedTo(e.target.value)}
             required
-          />
+            disabled={children.length === 0}
+          >
+            <option value="" disabled>
+              {children.length === 0 ? "Agregá un hijo primero" : "Asignar a un hijo"}
+            </option>
+            {children.map(child => (
+              <option key={child.uid} value={child.displayName}>
+                {child.displayName}
+              </option>
+            ))}
+          </select>
         </div>
         <div className="col-md-2 d-grid">
           <button type="submit" className="btn btn-primary">

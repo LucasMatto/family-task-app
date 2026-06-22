@@ -10,7 +10,7 @@ import TaskForm from "./pages/tasks/TaskForm.jsx";
 // Protected Route Component
 function ProtectedRoute({ children }) {
   const { currentUser, loading } = useAuth();
-  
+
   if (loading) {
     return (
       <div className="d-flex align-items-center justify-content-center min-h-screen bg-mesh">
@@ -21,18 +21,55 @@ function ProtectedRoute({ children }) {
       </div>
     );
   }
-  
+
   if (!currentUser) {
     return <Navigate to="/login" replace />;
   }
-  
+
   return children;
 }
 
 // Simple Beautiful Dashboard Component
 function Dashboard() {
-  const { currentUser, logout, isSupabaseConfigured } = useAuth();
-  const isFirebaseConfigured = true; // Temporary fix if undeclared in useAuth
+  const { currentUser, logout, registerChild, getChildren, isFirebaseConfigured } = useAuth();
+
+  // Estado para el alta de hijos
+  const [children, setChildren] = useState([]);
+  const [showChildForm, setShowChildForm] = useState(false);
+  const [childForm, setChildForm] = useState({ firstName: "", lastName: "", email: "", password: "" });
+  const [childError, setChildError] = useState("");
+  const [childSubmitting, setChildSubmitting] = useState(false);
+
+  const handleAddChild = async (e) => {
+    e.preventDefault();
+    setChildError("");
+
+    const { firstName, lastName, email, password } = childForm;
+    if (!firstName.trim() || !lastName.trim() || !email.trim() || !password) {
+      setChildError("Completá todos los campos.");
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setChildError("Formato de correo inválido.");
+      return;
+    }
+    if (password.length < 6) {
+      setChildError("La contraseña debe tener al menos 6 caracteres.");
+      return;
+    }
+
+    setChildSubmitting(true);
+    try {
+      const newChild = await registerChild(currentUser.uid, email.trim(), password, firstName.trim(), lastName.trim());
+      setChildren(prev => [...prev, newChild]);
+      setChildForm({ firstName: "", lastName: "", email: "", password: "" });
+      setShowChildForm(false);
+    } catch (err) {
+      setChildError(err.message || "No se pudo dar de alta al hijo.");
+    } finally {
+      setChildSubmitting(false);
+    }
+  };
 
   const handleLogout = async () => {
     try {
@@ -42,29 +79,41 @@ function Dashboard() {
     }
   };
 
-  // Mock data to demonstrate guidelines layout in Dashboard
-  const mockChildren = [
-    { id: 1, name: "Lucas García", email: "hijo@demo.com", tasksCount: 3, pendingCount: 1 },
-    { id: 2, name: "Sofía García", email: "sofia@demo.com", tasksCount: 2, pendingCount: 2 }
-  ];
-
   // Tasks state fetched from Firestore (fallback to mock if not configured)
   const [tasks, setTasks] = useState([]);
 
   useEffect(() => {
     if (currentUser) {
-      getTasks(currentUser.uid)
-        .then(data => setTasks(data))
-        .catch(err => console.error("Error loading tasks:", err));
+      // El padre lee sus tareas; el hijo lee las tareas de su padre.
+      const tasksOwnerUid = currentUser.role === "Hijo"
+        ? currentUser.parentUid
+        : currentUser.uid;
+
+      if (tasksOwnerUid) {
+        getTasks(tasksOwnerUid)
+          .then(data => setTasks(data))
+          .catch(err => console.error("Error loading tasks:", err));
+      }
+
+      // Cargar los hijos del padre logueado
+      if (currentUser.role === "Padre") {
+        getChildren(currentUser.uid)
+          .then(data => setChildren(data))
+          .catch(err => console.error("Error loading children:", err));
+      }
     }
   }, [currentUser]);
-  // Handlers for task actions (parent view)
+
+  // Dueño de las tareas: el padre. Si el usuario es hijo, sus tareas viven en la cuenta del padre.
+  const tasksOwnerUid = currentUser.role === "Hijo" ? currentUser.parentUid : currentUser.uid;
+
+  // Handlers for task actions
   const handleStatusToggle = async (task) => {
     const newStatus = task.status === "Completada" ? "Pendiente" : "Completada";
     try {
-      await updateTask(currentUser.uid, task.id, { status: newStatus });
+      await updateTask(tasksOwnerUid, task.id, { status: newStatus });
       // Refresh tasks after update
-      const refreshed = await getTasks(currentUser.uid);
+      const refreshed = await getTasks(tasksOwnerUid);
       setTasks(refreshed);
     } catch (err) {
       console.error("Error updating task status:", err);
@@ -73,8 +122,8 @@ function Dashboard() {
 
   const handleUpdateTask = async (taskId, updates) => {
     try {
-      await updateTask(currentUser.uid, taskId, updates);
-      const refreshed = await getTasks(currentUser.uid);
+      await updateTask(tasksOwnerUid, taskId, updates);
+      const refreshed = await getTasks(tasksOwnerUid);
       setTasks(refreshed);
     } catch (err) {
       console.error("Error updating task:", err);
@@ -83,8 +132,8 @@ function Dashboard() {
 
   const handleDelete = async (taskId) => {
     try {
-      await deleteTask(currentUser.uid, taskId);
-      const refreshed = await getTasks(currentUser.uid);
+      await deleteTask(tasksOwnerUid, taskId);
+      const refreshed = await getTasks(tasksOwnerUid);
       setTasks(refreshed);
     } catch (err) {
       console.error("Error deleting task:", err);
@@ -92,8 +141,8 @@ function Dashboard() {
   };
   const handleAddTask = async (newTask) => {
     try {
-      await addTask(currentUser.uid, newTask);
-      const refreshed = await getTasks(currentUser.uid);
+      await addTask(tasksOwnerUid, newTask);
+      const refreshed = await getTasks(tasksOwnerUid);
       setTasks(refreshed);
     } catch (err) {
       console.error("Error adding task:", err);
@@ -107,8 +156,8 @@ function Dashboard() {
       <header className="bg-white border-bottom py-3 sticky-top z-3">
         <div className="container px-3 px-md-5 d-flex align-items-center justify-content-between">
           <div className="d-flex align-items-center gap-2">
-            <span 
-              className="material-symbols-outlined text-primary fs-3" 
+            <span
+              className="material-symbols-outlined text-primary fs-3"
               style={{ fontVariationSettings: "'FILL' 1" }}
             >
               family_restroom
@@ -117,18 +166,13 @@ function Dashboard() {
           </div>
 
           <div className="d-flex align-items-center gap-3">
-            {isFirebaseConfigured || isSupabaseConfigured ? (
-              <span className="badge bg-success-subtle text-success border border-success-subtle px-3 py-2 rounded-pill d-none d-sm-inline-flex align-items-center gap-1">
-                <span className="material-symbols-outlined fs-6">cloud_done</span>
-                Supabase Conectado
-              </span>
-            ) : (
+            {!isFirebaseConfigured && (
               <span className="badge demo-mode-badge px-3 py-2 rounded-pill d-none d-sm-inline-flex align-items-center gap-1">
                 <span className="material-symbols-outlined fs-6">sports_esports</span>
                 Modo Demo
               </span>
             )}
-            
+
             <button onClick={handleLogout} className="btn btn-outline-danger btn-sm rounded-3 py-2 px-3 d-flex align-items-center gap-1">
               <span className="material-symbols-outlined fs-6">logout</span>
               Cerrar Sesión
@@ -139,7 +183,7 @@ function Dashboard() {
 
       {/* Main content */}
       <main className="container py-5 flex-grow-1">
-        
+
         {/* Welcome Section */}
         <div className="row mb-5">
           <div className="col-12">
@@ -149,7 +193,7 @@ function Dashboard() {
                   <span className="badge bg-white-50 text-white border border-white-50 px-3 py-1-5 rounded-pill mb-3">
                     Rol: {currentUser.role}
                   </span>
-                  <h1 className="display-5 fw-bold mb-2">¡Hola, {currentUser.displayName || currentUser.firstName}!</h1>
+                  <h1 className="display-5 fw-bold mb-2">¡Hola, {currentUser.displayName}!</h1>
                   <p className="fs-5 mb-0 opacity-75">
                     Bienvenido a tu panel familiar. La sincronización y supervisión de las tareas de tus hijos está lista.
                   </p>
@@ -165,96 +209,164 @@ function Dashboard() {
         </div>
 
         <div className="row g-4">
-          
+
           {/* Main Controls & Details Column */}
           <div className="col-lg-8 d-flex flex-column gap-4">
-            
+
             {/* Conditional Views by User Role */}
             {currentUser.role === "Padre" ? (
               <>
                 {/* Parent Section: Hijos */}
                 <div>
-                  <h3 className="fw-bold mb-3 text-dark d-flex align-items-center gap-2">
-                    <span className="material-symbols-outlined text-primary">child_care</span>
-                    Hijos Registrados
-                  </h3>
-                  <div className="row g-3">
-                    {mockChildren.map(child => (
-                      <div key={child.id} className="col-md-6">
-                        <div className="card border-0 p-4 rounded-4 card-shadow h-100 bg-white">
-                          <div className="d-flex align-items-center justify-content-between mb-3">
+                  <div className="d-flex align-items-center justify-content-between mb-3">
+                    <h3 className="fw-bold mb-0 text-dark d-flex align-items-center gap-2">
+                      <span className="material-symbols-outlined text-primary">child_care</span>
+                      Hijos Registrados
+                    </h3>
+                    <button
+                      onClick={() => { setShowChildForm(true); setChildError(""); }}
+                      className="btn btn-fc-primary btn-sm rounded-3 py-2 px-3 d-flex align-items-center gap-1"
+                    >
+                      <span className="material-symbols-outlined fs-6">person_add</span>
+                      Agregar Hijo
+                    </button>
+                  </div>
+
+                  {children.length === 0 ? (
+                    <div className="card border-0 p-4 rounded-4 card-shadow bg-white text-center text-secondary">
+                      <span className="material-symbols-outlined fs-1 text-primary mb-2">group_add</span>
+                      <p className="mb-0">Todavía no agregaste ningún hijo. Tocá <strong>"Agregar Hijo"</strong> para crear su cuenta.</p>
+                    </div>
+                  ) : (
+                    <div className="row g-3">
+                      {children.map(child => (
+                        <div key={child.uid} className="col-md-6">
+                          <div className="card border-0 p-4 rounded-4 card-shadow h-100 bg-white">
                             <div className="d-flex align-items-center gap-3">
                               <div className="rounded-circle bg-primary-subtle text-primary d-flex align-items-center justify-content-center" style={{ width: "48px", height: "48px" }}>
                                 <span className="material-symbols-outlined">face</span>
                               </div>
                               <div>
-                                <h5 className="mb-0 fw-bold">{child.name}</h5>
+                                <h5 className="mb-0 fw-bold">{child.displayName}</h5>
                                 <span className="small text-secondary">{child.email}</span>
                               </div>
                             </div>
                           </div>
-                          <div className="row g-2 border-top pt-3 text-center small text-secondary">
-                            <div className="col-6 border-end">
-                              <div className="fw-bold text-dark fs-5">{child.tasksCount}</div>
-                              <div>Tareas</div>
-                            </div>
-                            <div className="col-6">
-                              <div className="fw-bold text-warning fs-5">{child.pendingCount}</div>
-                              <div>Pendientes</div>
-                            </div>
-                          </div>
                         </div>
-                      </div>
-                    ))}
-                  </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 {/* Parent Section: Tareas */}
-                <TaskForm onAdd={handleAddTask} />
-                <ParentTaskList 
-                  tasks={tasks} 
-                  onStatusToggle={handleStatusToggle} 
-                  onDelete={handleDelete} 
-                  onUpdateTask={handleUpdateTask} 
+                <TaskForm onAdd={handleAddTask} children={children} />
+                <ParentTaskList
+                  tasks={tasks}
+                  onStatusToggle={handleStatusToggle}
+                  onDelete={handleDelete}
+                  onUpdateTask={handleUpdateTask}
                 />
               </>
             ) : (
               <>
-                {/* Child Section: Mis Tareas */}
-                <div>
-                  <h3 className="fw-bold mb-3 text-dark d-flex align-items-center gap-2">
-                    <span className="material-symbols-outlined text-primary">checklist</span>
-                    Mis Tareas para Hoy
-                  </h3>
-                  <div className="row g-3">
-                    {tasks
-                        .filter(t => t.assignedTo.startsWith(currentUser.firstName))
-                      .map(task => (
-                        <div key={task.id} className="col-12">
-                          <div className="card border-0 p-4 rounded-4 card-shadow bg-white d-flex flex-row align-items-center justify-content-between">
-                            <div className="d-flex align-items-center gap-3">
-                              <span className={`material-symbols-outlined fs-2 ${
-                                task.status === "Completada" ? "text-success" : "text-secondary opacity-50"
-                              }`} style={{ cursor: "pointer", fontVariationSettings: task.status === "Completada" ? "'FILL' 1" : "'FILL' 0" }}>
-                                {task.status === "Completada" ? "check_circle" : "radio_button_unchecked"}
-                              </span>
-                              <div>
-                                <h5 className={`mb-0 fw-bold ${task.status === "Completada" ? "text-decoration-line-through text-secondary" : ""}`}>
-                                  {task.title}
-                                </h5>
-                                <span className="small text-secondary">Hora sugerida: {task.time}</span>
-                              </div>
-                            </div>
-                            <span className={`badge px-3 py-1-5 rounded-pill ${
-                              task.status === "Completada" ? "bg-success-subtle text-success" : "bg-warning-subtle text-warning"
-                            }`}>
-                              {task.status}
+                {(() => {
+                  // Tareas del hijo, separadas por estado y ordenadas por fecha.
+                  const byDate = (a, b) => (a.fecha || "").localeCompare(b.fecha || "");
+                  const myTasks = tasks.filter(t => t.assignedTo === currentUser.displayName);
+                  const pendientes = myTasks.filter(t => t.status !== "Completada").sort(byDate);
+                  const completadas = myTasks.filter(t => t.status === "Completada").sort(byDate);
+
+                  const TaskCard = (task) => (
+                    <div key={task.id} className="col-12">
+                      <div className="card border-0 p-4 rounded-4 card-shadow bg-white d-flex flex-row align-items-center justify-content-between gap-3">
+                        <div className="d-flex align-items-center gap-3">
+                          <span
+                            className={`material-symbols-outlined fs-2 ${task.status === "Completada" ? "text-success" : "text-secondary opacity-50"}`}
+                            style={{ cursor: "pointer", fontVariationSettings: task.status === "Completada" ? "'FILL' 1" : "'FILL' 0" }}
+                            onClick={() => handleStatusToggle(task)}
+                            title={task.status === "Completada" ? "Marcar como pendiente" : "Marcar como completada"}
+                          >
+                            {task.status === "Completada" ? "check_circle" : "radio_button_unchecked"}
+                          </span>
+                          <div>
+                            <h5 className={`mb-0 fw-bold ${task.status === "Completada" ? "text-decoration-line-through text-secondary" : ""}`}>
+                              {task.title}
+                            </h5>
+                            <span className="small text-secondary d-flex align-items-center gap-2 flex-wrap">
+                              {task.fecha && (
+                                <span className="d-inline-flex align-items-center gap-1">
+                                  <span className="material-symbols-outlined fs-6">calendar_today</span>
+                                  {task.fecha}
+                                </span>
+                              )}
+                              {task.time && (
+                                <span className="d-inline-flex align-items-center gap-1">
+                                  <span className="material-symbols-outlined fs-6">schedule</span>
+                                  {task.time}
+                                </span>
+                              )}
                             </span>
                           </div>
                         </div>
-                      ))}
-                  </div>
-                </div>
+                        <button
+                          type="button"
+                          onClick={() => handleStatusToggle(task)}
+                          className={`btn btn-sm rounded-3 py-2 px-3 d-flex align-items-center gap-1 ${task.status === "Completada" ? "btn-outline-secondary" : "btn-success"}`}
+                        >
+                          <span className="material-symbols-outlined fs-6">
+                            {task.status === "Completada" ? "undo" : "check"}
+                          </span>
+                          {task.status === "Completada" ? "Marcar pendiente" : "Completar"}
+                        </button>
+                      </div>
+                    </div>
+                  );
+
+                  return (
+                    <>
+                      {/* Pendientes */}
+                      <div className="mb-4">
+                        <h3 className="fw-bold mb-3 text-dark d-flex align-items-center gap-2">
+                          <span className="material-symbols-outlined text-warning">pending_actions</span>
+                          Tareas Pendientes
+                          <span className="badge bg-warning-subtle text-warning rounded-pill">{pendientes.length}</span>
+                        </h3>
+                        <div className="row g-3">
+                          {pendientes.length === 0 ? (
+                            <div className="col-12">
+                              <div className="card border-0 p-4 rounded-4 card-shadow bg-white text-center text-secondary">
+                                <span className="material-symbols-outlined fs-1 text-success mb-2">task_alt</span>
+                                <p className="mb-0">¡No tenés tareas pendientes! 🎉</p>
+                              </div>
+                            </div>
+                          ) : (
+                            pendientes.map(TaskCard)
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Completadas */}
+                      <div>
+                        <h3 className="fw-bold mb-3 text-dark d-flex align-items-center gap-2">
+                          <span className="material-symbols-outlined text-success">check_circle</span>
+                          Tareas Completadas
+                          <span className="badge bg-success-subtle text-success rounded-pill">{completadas.length}</span>
+                        </h3>
+                        <div className="row g-3">
+                          {completadas.length === 0 ? (
+                            <div className="col-12">
+                              <div className="card border-0 p-4 rounded-4 card-shadow bg-white text-center text-secondary">
+                                <p className="mb-0">Todavía no completaste ninguna tarea.</p>
+                              </div>
+                            </div>
+                          ) : (
+                            completadas.map(TaskCard)
+                          )}
+                        </div>
+                      </div>
+                    </>
+                  );
+                })()}
               </>
             )}
 
@@ -262,45 +374,6 @@ function Dashboard() {
 
           {/* Sidebar Info & Configuration Column */}
           <div className="col-lg-4">
-            
-            {/* Connection instructions card */}
-            <div className="card border-0 p-4 rounded-4 card-shadow bg-white d-flex flex-column gap-3 mb-4">
-              <h4 className="fw-bold text-dark d-flex align-items-center gap-2 mb-0">
-                <span className="material-symbols-outlined text-warning">key</span>
-                Credenciales Supabase
-              </h4>
-              
-              {isSupabaseConfigured ? (
-                <div className="text-success small d-flex flex-column gap-2">
-                  <div className="d-flex align-items-center gap-2">
-                    <span className="material-symbols-outlined">check_circle</span>
-                    <span>¡Tu aplicación está usando una conexión de Supabase en tiempo real!</span>
-                  </div>
-                  <p className="mb-0 text-muted">
-                    Los usuarios se registran y autentican mediante Supabase Auth, y sus roles y tareas se almacenan de forma segura en tablas de PostgreSQL.
-                  </p>
-                </div>
-              ) : (
-                <div className="text-secondary small d-flex flex-column gap-2">
-                  <div className="d-flex align-items-center gap-2 text-warning mb-1">
-                    <span className="material-symbols-outlined">warning</span>
-                    <span className="fw-semibold">Ejecutando en Modo Demo Local</span>
-                  </div>
-                  <p className="mb-2 text-muted">
-                    Para conectar tu proyecto a tu propia base de datos Supabase:
-                  </p>
-                  <ol className="ps-3 mb-2 text-muted">
-                    <li className="mb-1">Crea un proyecto en <a href="https://supabase.com/" target="_blank" rel="noreferrer" className="text-primary text-decoration-none fw-semibold">Supabase Console</a></li>
-                    <li className="mb-1">Crea la tabla <code className="bg-light px-1 rounded text-danger">profiles</code> y <code className="bg-light px-1 rounded text-danger">tasks</code></li>
-                    <li className="mb-1">Copia las credenciales en el archivo <code className="bg-light px-1 rounded text-danger">.env</code> de la raíz del proyecto.</li>
-                    <li className="mb-1">Reinicia el servidor dev.</li>
-                  </ol>
-                  <p className="mb-0 text-muted">
-                    El proyecto detectará automáticamente las credenciales y cambiará a modo Supabase.
-                  </p>
-                </div>
-              )}
-            </div>
 
             {/* Profile Overview */}
             <div className="card border-0 p-4 rounded-4 card-shadow bg-white d-flex flex-column gap-3">
@@ -335,10 +408,124 @@ function Dashboard() {
         <div className="container px-3 px-md-5 d-flex flex-column flex-md-row justify-content-between align-items-center gap-3">
           <div className="d-flex align-items-center gap-2">
             <span className="fw-bold text-primary small">FamilyCare</span>
-            <span className="text-secondary small">© 2024 FamilyCare. Todos los derechos reservados.</span>
+            <span className="text-secondary small">© 2026 FamilyCare. Todos los derechos reservados.</span>
           </div>
         </div>
       </footer>
+
+      {/* Modal pop-up: alta de hijo */}
+      {showChildForm && (
+        <div
+          className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center p-3"
+          style={{ backgroundColor: "rgba(0, 0, 0, 0.5)", zIndex: 1050 }}
+          onClick={() => { if (!childSubmitting) { setShowChildForm(false); setChildError(""); } }}
+        >
+          <div
+            className="card border-0 p-4 p-md-5 rounded-4 card-shadow bg-white w-100"
+            style={{ maxWidth: "480px" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="d-flex align-items-center justify-content-between mb-3">
+              <h5 className="fw-bold mb-0 d-flex align-items-center gap-2">
+                <span className="material-symbols-outlined text-primary">person_add</span>
+                Dar de alta un hijo
+              </h5>
+              <button
+                type="button"
+                className="btn btn-sm btn-light rounded-circle d-flex align-items-center justify-content-center"
+                style={{ width: "32px", height: "32px" }}
+                onClick={() => { setShowChildForm(false); setChildError(""); }}
+                disabled={childSubmitting}
+              >
+                <span className="material-symbols-outlined fs-6">close</span>
+              </button>
+            </div>
+
+            {childError && (
+              <div className="alert alert-danger border-0 py-2 px-3 mb-3 small d-flex align-items-center gap-2">
+                <span className="material-symbols-outlined fs-5">error</span>
+                <div>{childError}</div>
+              </div>
+            )}
+
+            <form onSubmit={handleAddChild} className="d-flex flex-column gap-3">
+              <div className="row g-3">
+                <div className="col-md-6 d-flex flex-column gap-1">
+                  <label className="fw-semibold text-secondary small">Nombre</label>
+                  <input
+                    className="form-control form-input-focus rounded-3 py-2-5 fs-6"
+                    type="text"
+                    placeholder="Ej: Lucas"
+                    value={childForm.firstName}
+                    onChange={(e) => setChildForm(f => ({ ...f, firstName: e.target.value }))}
+                    disabled={childSubmitting}
+                  />
+                </div>
+                <div className="col-md-6 d-flex flex-column gap-1">
+                  <label className="fw-semibold text-secondary small">Apellido</label>
+                  <input
+                    className="form-control form-input-focus rounded-3 py-2-5 fs-6"
+                    type="text"
+                    placeholder="Ej: García"
+                    value={childForm.lastName}
+                    onChange={(e) => setChildForm(f => ({ ...f, lastName: e.target.value }))}
+                    disabled={childSubmitting}
+                  />
+                </div>
+              </div>
+              <div className="d-flex flex-column gap-1">
+                <label className="fw-semibold text-secondary small">Correo electrónico</label>
+                <input
+                  className="form-control form-input-focus rounded-3 py-2-5 fs-6"
+                  type="email"
+                  placeholder="hijo@email.com"
+                  value={childForm.email}
+                  onChange={(e) => setChildForm(f => ({ ...f, email: e.target.value }))}
+                  disabled={childSubmitting}
+                />
+              </div>
+              <div className="d-flex flex-column gap-1">
+                <label className="fw-semibold text-secondary small">Contraseña</label>
+                <input
+                  className="form-control form-input-focus rounded-3 py-2-5 fs-6"
+                  type="password"
+                  placeholder="••••••••"
+                  value={childForm.password}
+                  onChange={(e) => setChildForm(f => ({ ...f, password: e.target.value }))}
+                  disabled={childSubmitting}
+                />
+              </div>
+              <div className="d-flex gap-2 mt-2">
+                <button
+                  type="submit"
+                  className="btn btn-fc-primary rounded-3 py-2-5 px-4 d-flex align-items-center gap-2 flex-grow-1 justify-content-center"
+                  disabled={childSubmitting}
+                >
+                  {childSubmitting ? (
+                    <>
+                      <span className="material-symbols-outlined animate-spin fs-5">progress_activity</span>
+                      <span>Creando...</span>
+                    </>
+                  ) : (
+                    <>
+                      <span className="material-symbols-outlined fs-5">check</span>
+                      <span>Crear hijo</span>
+                    </>
+                  )}
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-outline-secondary rounded-3 py-2-5 px-4"
+                  onClick={() => { setShowChildForm(false); setChildError(""); }}
+                  disabled={childSubmitting}
+                >
+                  Cancelar
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -350,13 +537,13 @@ export default function App() {
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
-          <Route 
-            path="/*" 
+          <Route
+            path="/*"
             element={
               <ProtectedRoute>
                 <Dashboard />
               </ProtectedRoute>
-            } 
+            }
           />
         </Routes>
       </BrowserRouter>

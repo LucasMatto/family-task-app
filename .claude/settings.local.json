@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(curl -s -X POST \"https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=AIzaSyAKaWsUMeXhc5M7SeDNXgO6Ii0j_zWEfLw\" -H \"Content-Type: application/json\" -d '{\"returnSecureToken\":true}')",
+      "Bash(npm uninstall *)",
+      "Bash(npx vite *)"
+    ]
+  }
+}
